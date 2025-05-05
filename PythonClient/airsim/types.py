@@ -26,11 +26,11 @@ class MsgpackMixin:
     @classmethod
     def from_msgpack(cls, encoded):
         obj = cls()
-        if len(encoded) != len(cls.attribute_order):
-            raise ValueError("Length of encoded data does not match number of attributes")
-
-        for index, (attr_name, attr_type) in enumerate(cls.attribute_order):
-            value = encoded[index]
+        
+        for attr_name, attr_type in cls.attribute_order:
+            if not attr_name in encoded:
+                continue
+            value = encoded[attr_name]
             if issubclass(attr_type, MsgpackMixin):
                 value = attr_type.from_msgpack(value)
             setattr(obj, attr_name, value)

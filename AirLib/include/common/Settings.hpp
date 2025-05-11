@@ -163,6 +163,17 @@ namespace airlib
             }
         }
 
+        std::vector<std::string> getStringVector(const std::string& name, const std::vector<std::string>& defaultValue) const {
+            if (doc_.count(name) == 1 && doc_[name].is_array()) {
+                std::vector<std::string> result;
+                for (const auto& item : doc_[name]) {
+                    result.push_back(item.get<std::string>());
+                }
+                return result;
+            }
+            return defaultValue;
+        }        
+
         double getDouble(const std::string& name, double defaultValue) const
         {
             if (doc_.count(name) == 1) {
@@ -181,6 +192,17 @@ namespace airlib
             else {
                 return defaultValue;
             }
+        }
+
+        std::vector<float> getFloatVector(const std::string& name, const std::vector<float>& defaultValue) const {
+            if (doc_.count(name) == 1 && doc_[name].is_array()) {
+                std::vector<float> result;
+                for (const auto& item : doc_[name]) {
+                    result.push_back(item.get<float>());
+                }
+                return result;
+            }
+            return defaultValue;
         }
 
         bool getBool(const std::string& name, bool defaultValue) const
@@ -216,6 +238,20 @@ namespace airlib
             }
             return false;
         }
+
+        bool setStringVector(const std::string& name, const std::vector<std::string>& value) {
+            nlohmann::json json_array = nlohmann::json::array();
+            for (auto& item : value) {
+                json_array.push_back(item);
+            }
+            
+            if (doc_.count(name) != 1 || doc_[name] != json_array) {
+                doc_[name] = json_array;
+                return true;
+            }
+            return false;
+        }
+
         bool setDouble(const std::string& name, double value)
         {
             if (doc_.count(name) != 1 || doc_[name].type() != nlohmann::detail::value_t::number_float || static_cast<double>(doc_[name]) != value) {
@@ -224,6 +260,20 @@ namespace airlib
             }
             return false;
         }
+
+        bool setFloatVector(const std::string& name, const std::vector<float>& value) {
+            nlohmann::json json_array = nlohmann::json::array();
+            for (auto& item : value) {
+                json_array.push_back(item);
+            }
+            
+            if (doc_.count(name) != 1 || doc_[name] != json_array) {
+                doc_[name] = json_array;
+                return true;
+            }
+            return false;
+        }
+
         bool setBool(const std::string& name, bool value)
         {
             if (doc_.count(name) != 1 || doc_[name].type() != nlohmann::detail::value_t::boolean || static_cast<bool>(doc_[name]) != value) {
@@ -232,6 +282,7 @@ namespace airlib
             }
             return false;
         }
+
         bool setInt(const std::string& name, int value)
         {
             if (doc_.count(name) != 1 || doc_[name].type() != nlohmann::detail::value_t::number_integer || static_cast<int>(doc_[name]) != value) {

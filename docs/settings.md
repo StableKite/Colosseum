@@ -208,10 +208,10 @@ Below are complete list of settings available along with their default values. I
   },
   "Physics": {
   "Multirotor": {
-    "Preset": "",
+    "Preset": "Quadrocopter",
     "RotorCount": 4,
     "LinearDragCoefficient": 0.325,
-    "AngularDragCoefficient": NaN,
+    "AngularDragCoefficient": 0.325,
     "Restitution": 0.55,
     "Friction": 0.5,
     "ArmLength": 0.2275,

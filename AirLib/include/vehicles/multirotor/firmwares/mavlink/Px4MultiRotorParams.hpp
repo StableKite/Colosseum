@@ -38,11 +38,11 @@ namespace airlib
         {
             auto& params = getParams();
 
-            const auto& user_settings = AirSimSettings::singleton().physics_settings.multirotor; // Get a singleton
+            auto& user_settings = AirSimSettings::singleton().physics_settings.multirotor; // Get a singleton
             AirSimSettings::MultirotorPhysicsSettings preset_defaults;
 
             // Create a set of valid models
-            static const std::unordered_set<std::string> allowed_models = {
+            static const std::unordered_set<std::string> valid_presets = {
                 "Blacksheep", "Flamewheel", "FlamewheelFLA", "Hexacopter", "Octocopter"
             };
             

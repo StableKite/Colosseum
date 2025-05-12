@@ -44,14 +44,10 @@ namespace airlib
             Vector3r body_box;
 
             /*********** optional parameters with defaults ***********/
-            real_T linear_drag_coefficient = 1.3f / 4.0f;
-            //sample value 1.3 from http://klsin.bpmsg.com/how-fast-can-a-quadcopter-fly/, but divided by 4 to account
-            // for nice streamlined frame design and allow higher top speed which is more fun.
-            //angular coefficient is usually 10X smaller than linear, however we should replace this with exact number
-            //http://physics.stackexchange.com/q/304742/14061
-            real_T angular_drag_coefficient = linear_drag_coefficient;
-            real_T restitution = 0.55f; // value of 1 would result in perfectly elastic collisions, 0 would be completely inelastic.
-            real_T friction = 0.5f;
+            real_T linear_drag_coefficient;
+            real_T angular_drag_coefficient;
+            real_T restitution;
+            real_T friction;
             RotorParams rotor_params;
         };
 
@@ -100,7 +96,14 @@ namespace airlib
     protected: //static utility functions for derived classes to use
         /// Initialize the rotor_poses given the rotor_count, the arm lengths and the arm angles (relative to forwards vector).
         /// Also provide the direction you want to spin each rotor and the z-offset of the rotors relative to the center of gravity.
-        static void initializeRotors(vector<RotorPose>& rotor_poses, uint rotor_count, real_T arm_lengths[], real_T arm_angles[], RotorTurningDirection rotor_directions[], real_T rotor_z /* z relative to center of gravity */)
+        static void initializeRotors(
+            vector<RotorPose>& rotor_poses,
+            uint rotor_count,
+            const std::vector<real_T>& arm_lengths, 
+            const std::vector<real_T>& arm_angles, 
+            const std::vector<RotorTurningDirection>& rotor_directions,
+            real_T rotor_z /* z relative to center of gravity */
+        )
         {
             Vector3r unit_z(0, 0, -1); //NED frame
             rotor_poses.clear();
@@ -109,7 +112,11 @@ namespace airlib
                 // vectors below are rotated according to NED left hand rule (so the vectors are rotated counter clockwise)
                 Quaternionr angle(AngleAxisr(-arm_angles[i] * M_PIf / 180, unit_z));
                 rotor_poses.emplace_back(
-                    VectorMath::rotateVector(Vector3r(arm_lengths[i], 0, rotor_z), angle, true),
+                    VectorMath::rotateVector(
+                        Vector3r(arm_lengths[i], 0, rotor_z),
+                        angle,
+                        true
+                    ),
                     unit_z,
                     rotor_directions[i]
                 );
@@ -137,7 +144,10 @@ namespace airlib
         // Some Frame types which can be used by different firmwares
         // Specific frame configurations, modifications can be done in the Firmware Params
 
-        void setupFrame(Params& params, AirSimSettings::MultirotorPhysicsSettings setup_params)
+        void setupFrame(
+            Params& params,
+            const AirSimSettings::MultirotorPhysicsSettings& setup_params
+        )
         {
             /*
             Motor placements:
@@ -173,7 +183,7 @@ namespace airlib
             */
 
             //set up arm lengths
-            params.rotor_count = static_cast<unsigned int>setup_params.rotors_count;
+            params.rotor_count = static_cast<unsigned int>(setup_params.rotor_count);
  
             std::vector<real_T> arm_lengths(setup_params.arm_lengths.begin(), setup_params.arm_lengths.end());
 

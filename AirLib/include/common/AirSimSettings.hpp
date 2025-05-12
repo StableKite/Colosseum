@@ -1649,23 +1649,22 @@ namespace airlib
         {
             if (simmode_name == kSimModeTypeMultirotor)
             {
+                // Determ a preset
+                std::string preset = "";
+                std::string lower_vehicle_type = Utils::toLower(settings_json.getString("VehicleType", ""));
+                if (lower_vehicle_type != kVehicleTypePX4) // If not set or not PX4
+                {
+                    if (lower_vehicle_type == kVehicleTypeArduCopterSolo) preset = "Solo"; // Preset for ArduCopterSolo
+                    else preset = "Quadrocopter"; // Default preset
+                }
+
                 Settings physics_child;
                 if (settings_json.getChild("Physics", physics_child))
                 {
                     Settings multirotor_child;
                     if (physics_child.getChild("Multirotor", multirotor_child))
                     {
-                        // Determ a preset
-                        std::string preset = Utils::toLower(multirotor_child.getString("Preset", ""));
-                        if (preset.empty()) 
-                        {
-                            std::string lower_vehicle_type = Utils::toLower(settings_json.getString("VehicleType", ""));
-                            if (lower_vehicle_type != kVehicleTypePX4) // If not set or not PX4
-                            {
-                                if (lower_vehicle_type == kVehicleTypeArduCopterSolo) preset = "Solo"; // Preset for ArduCopterSolo
-                                else preset = "Quadrocopter"; // Default preset
-                            }
-                        }
+                        preset = Utils::toLower(multirotor_child.getString("Preset", preset));
                         physics_setting.multirotor.applyPresetDefaults(preset);  // Set the settings depending on the preset
 
                         physics_setting.multirotor.rotor_count = multirotor_child.getInt("RotorCount", physics_setting.multirotor.rotor_count);
@@ -1708,7 +1707,9 @@ namespace airlib
                             physics_setting.multirotor.rotor_params.max_torque = rotor_params_child.getFloat("MaxTorque", physics_setting.multirotor.rotor_params.max_torque);
                         }
                     }
+                    else physics_setting.multirotor.applyPresetDefaults(preset);  // Set the settings depending on the preset
                 }
+                else physics_setting.multirotor.applyPresetDefaults(preset);  // Set the settings depending on the preset
             }
         }
     };

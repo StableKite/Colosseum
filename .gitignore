@@ -26,6 +26,7 @@ Intermediate/
 Binaries/
 llvm-build/
 llvm-source*/
+Builds
 
 # CMake files
 CMakeFiles/

@@ -38,23 +38,39 @@ namespace airlib
         {
             auto& params = getParams();
 
-            if (connection_info_.model == "Blacksheep") {
-                setupFrameBlacksheep(params);
-            }
-            else if (connection_info_.model == "Flamewheel") {
-                setupFrameFlamewheel(params);
-            }
-            else if (connection_info_.model == "FlamewheelFLA") {
-                setupFrameFlamewheelFLA(params);
-            }
-            else if (connection_info_.model == "Hexacopter") {
-                setupFrameGenericHex(params);
-            }
-            else if (connection_info_.model == "Octocopter") {
-                setupFrameGenericOcto(params);
-            }
-            else //Generic
-                setupFrameGenericQuad(params);
+            auto& user_settings = AirSimSettings::singleton().physics_settings.multirotor; // Get a singleton
+            AirSimSettings::MultirotorPhysicsSettings preset_defaults;
+
+            // Create a set of valid models
+            static const std::unordered_set<std::string> valid_presets = {
+                "Blacksheep", "Flamewheel", "FlamewheelFLA", "Hexacopter", "Octocopter"
+            };
+            
+            std::string target_preset = valid_presets.count(connection_info_.model) ? connection_info_.model : "Quadrocopter";
+
+            preset_defaults.applyPresetDefaults(target_preset);
+
+            // Merge settings (user ones take precedence)
+            #define MERGE_FIELD(field) if (user_settings.field <= 0) user_settings.field = preset_defaults.field
+            #define MERGE_VECTOR(field) if (user_settings.field.empty()) user_settings.field = preset_defaults.field
+
+            MERGE_VECTOR(preset);
+            MERGE_FIELD(rotor_count);
+            MERGE_FIELD(linear_drag_coefficient);
+            MERGE_FIELD(angular_drag_coefficient);
+            MERGE_VECTOR(arm_lengths);
+            MERGE_VECTOR(arm_angles);
+            MERGE_VECTOR(rotor_directions);
+            MERGE_FIELD(mass);
+            MERGE_FIELD(motor_assembly_weight);
+            MERGE_VECTOR(body_box);
+            MERGE_FIELD(rotor_z);
+        
+            MERGE_FIELD(rotor_params.C_T);
+            MERGE_FIELD(rotor_params.C_P);
+            MERGE_FIELD(rotor_params.max_rpm);
+
+            setupFrame(params, user_settings);
         }
 
     protected:

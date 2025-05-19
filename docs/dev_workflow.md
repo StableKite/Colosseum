@@ -25,7 +25,7 @@ REM //Navigate to Colosseum repo folder
 
 git pull                          
 build.cmd                        
-cd Unreal\Environments\Blocks         
+cd Unreal\Environments\Blocks   
 update_from_git.bat
 start Blocks.sln
 ```
@@ -37,7 +37,7 @@ After you are done with you code changes, you might want to push your changes ba
 
 ```
 REM //Use x64 Native Tools Command Prompt for VS 2019
-REM //run this from Unreal\Environments\Blocks 
+REM //run this from Unreal\Environments\Blocks
 
 update_to_git.bat
 build.cmd

@@ -30,7 +30,7 @@ The default is to use multirotor. To use car simple set `"SimMode": "Car"` like 
 
 ```
 {
-  "SettingsVersion": 1.2,
+  "SettingsVersion": 1.3,
   "SimMode": "Car"
 }
 ```
@@ -204,6 +204,35 @@ Below are complete list of settings available along with their default values. I
     },
     "FixedCamera2": {
         // same elements as in CameraDefaults above
+    }
+  },
+  "Physics": {
+  "Multirotor": {
+    "Preset": "Quadrocopter",
+    "RotorCount": 4,
+    "LinearDragCoefficient": 0.325,
+    "AngularDragCoefficient": 0.325,
+    "Restitution": 0.55,
+    "Friction": 0.5,
+    "ArmLength": 0.2275,
+    "ArmLengths": NaN,
+    "ArmAngles": [45.0, -135.0, -45.0, 135.0],
+    "RotorDirections": ["ccw", "ccw", "cw", "cw"],
+    "Mass": 1.0,
+    "MotorAssemblyWeight": 0.055,
+    "BodyBox": {"X": 0.180, "Y": 0.11, "Z": 0.04},
+    "RotorZ": 0.025,
+    "RotorParams": {
+      "CT": 0.109919,
+      "CP": 0.040164,
+      "AirDensity": 1.225,
+      "MaxRpm": 6396.667,
+      "PropellerDiameter": 0.2286,
+      "PropellerHeight": 0.01,
+      "ControlSignalFilterTc": 0.005, 
+      "MaxThrust": NaN,
+      "MaxTorque": NaN
+      }
     }
   }
 }
@@ -407,6 +436,160 @@ Each simulation mode will go through the list of vehicles specified in this sett
         }
       }
     }
+}
+```
+
+### Setting physical parameters
+Currently, setting physical parameters is supported only for the built-in `"FastPhysicsEngine"` engine, for a multirotor. Any number of rotors are supported, but there are presets only for 4, 6 and 8 rotor types. For other configurations, you need to define the parameters manually.
+The rotors are arranged in the following order:
+For a quadcopter:
+```
+      x-axis
+ (2)  |   (0)
+      |
+-------------- y-axis
+      |
+ (1)  |   (3)
+```
+For hexacopter:
+```
+     x-axis
+ (2)    (4)
+    \  /
+     \/
+(1)-------(0) y-axis
+     /\
+    /  \
+  (5)  (3)
+```
+For octocopter:
+```
+          x-axis
+     (4)  |  (0) 
+          |
+(6)       |       (2)
+__________|__________  y-axis
+          |
+(5)       |       (7)
+          |
+     (1)  |  (3)
+```
+
+The following default settings are available:
+
+```json
+{
+  ...
+  "Physics": {
+    "Multirotor": {
+      "Preset": "", // Preset of settings, used by default (Quadrocopter, Hexacopter, Octocopter, Flamewheel, FlamewheelFLA, Blacksheep, Solo). If not set, for not PX4 Quadrocopter is Default. PX4 determines depending on the model
+      "RotorCount": 4, // Number of propellers (4, 6, 8)
+      "LinearDragCoefficient": 0.325, // Linear air drag coefficient
+      "AngularDragCoefficient": NaN, // Angular air drag coefficient. By default, it is equal to the linear coefficient
+      "Restitution": 0.55, // Coefficient of recovery (restitution) during collisions (1.0 - perfectly elastic impact (kinetic energy is conserved), 0.0 - completely inelastic impact (objects "stick together").)
+      "Friction": 0.5, // Coefficient of friction between the drone and surfaces upon contact (0.0 - no friction (drone slides infinitely), 1.0 - maximum friction (drone stops instantly))
+      "ArmLength": 0.2275, // Length of beams (m)
+      "ArmLengths": NaN, // Length of each beam is specified separately. If specified - overrides the parameter above
+      "ArmAngles": [45.0, -135.0, -45.0, 135.0], // The angles of rotation of the rays relative to the forward direction clockwise, in degrees
+      "RotorDirections": ["ccw", "ccw", "cw", "cw"], // Direction of motor rotation
+      "Mass": 1.0, // Full mass of the device (kg)
+      "MotorAssemblyWeight": 0.055, // mass of one motor, assembled (kg)
+      "BodyBox": {
+        "X": 0.180, // UAV length (m)
+        "Y": 0.11, // UAV width (m)
+        "Z": 0.04 // UAV height (m)
+      },
+      "RotorZ": 0.025, // Distance between the propeller plane and the center of mass (m)
+      "RotorParams": {
+        // Used to calculate the parameters below:
+        "CT": 0.109919, // Dimensionless propeller thrust coefficient (determines how efficiently the propeller converts power into thrust)
+        "CP": 0.040164, // Dimensionless power (torque) coefficient (determines energy lost to rotation)
+        "AirDensity": 1.225, // Air density (kg/m³)
+        "MaxRpm": 6396.667, // Maximum engine revolutions per minute (RPM)
+        "PropellerDiameter": 0.2286, // Propeller diameter, in meters
+        "PropellerHeight": 0.01, // Height of the cylindrical area captured by the propeller's rotation (used to calculate aerodynamic effects)
+        "ControlSignalFilterTc": 0.005, // Time constant (in seconds) for filtering the control signal. Smoothes out sudden changes in engine speed (e.g. when thrust suddenly increases)
+
+        // Calculated based on the parameters above, if specified, override them:
+        "MaxThrust": NaN, // Maximum thrust (in Newtons) produced by the propeller
+        "MaxTorque": NaN // Maximum torque (in Nm) required to rotate the propeller
+      }
+    }
+  }
+}
+```
+
+Additional presets and the parameters they override:
+- `Hexacopter`:
+```json
+{
+  "Preset": "Hexacopter",
+  "RotorCount": 6,
+  "ArmAngles": [90.0, -90.0, -30.0, 150.0, 30.0, -150.0],
+  "RotorDirections": ["cw", "ccw", "cw", "ccw", "ccw", "cw"]
+}
+```
+- `Octocopter`:
+```json
+{
+  "Preset": "Octocopter",
+  "RotorCount": 8,
+  "ArmAngles": [22.5, -157.5, 67.5, 157.5, -22.5, -112.5, -67.5, 112.5],
+  "RotorDirections": ["cw", "cw", "ccw", "ccw", "ccw", "ccw", "cw", "cw"]
+}
+```
+- `Flamewheel`:
+```json
+{
+  "Preset": "Flamewheel",
+  "LinearDragCoefficient": 1.3, // make top speed more real.
+  "ArmLength": 0.225,
+  "Mass": 1.635,
+  "MotorAssemblyWeight": 0.052,
+  "BodyBox": {"X": 0.16, "Y": 0.1, "Z": 0.14},
+  "RotorZ": 0.15,
+  "RotorParams": {
+      "CP": 0.047,
+      "MaxRpm": 9500
+  }
+}
+```
+- `FlamewheelFLA`: Overrides the following settings relative to `Flamewheel`:
+```json
+{
+  "Preset": "FlamewheelFLA",
+  "Mass": 2.25,
+  "MotorAssemblyWeight": 0.1,
+  "RotorParams": {
+      "CT": 0.2,
+      "CP": 0.1,
+      "MaxRpm": 9324
+  }
+}
+```
+- `Blacksheep`:
+```json
+{
+  "Preset": "Blacksheep",
+  "ArmLengths": [0.22, 0.255, 0.22, 0.255],
+  "ArmAngles": [55.0, -125.0, -55.0, 125.0],
+  "Mass": 2.0,
+  "MotorAssemblyWeight": 0.052,
+  "BodyBox": {"X": 0.2, "Y": 0.12, "Z": 0.04},
+  "RotorParams": {
+      "CP": 0.047,
+      "MaxRpm": 9500
+  }
+}
+```
+- `Solo` (ArduCopterSolo):
+```json
+{
+  "Preset": "Solo",
+  "ArmLength": 0.22987,
+  "Mass": 0.8,
+  "BodyBox": {"X": 0.2413, "Y": 0.1143, "Z": 0.0762},
+  "RotorZ": 0.0762
 }
 ```
 

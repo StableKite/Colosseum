@@ -50,7 +50,7 @@ void MavLinkNodeImpl::sendHeartbeat()
     CurrentThread::setThreadName("MavLinkThread");
     while (heartbeat_running_) {
         sendOneHeartbeat();
-        std::this_thread::sleep_for(std::chrono::milliseconds(heartbeatMilliseconds));
+        mavlink_utils::CurrentThread::sleep_for_ms(heartbeatMilliseconds);
     }
 }
 

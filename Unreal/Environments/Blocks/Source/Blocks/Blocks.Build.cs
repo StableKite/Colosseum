@@ -7,6 +7,9 @@ public class Blocks : ModuleRules
     public Blocks(ReadOnlyTargetRules Target) : base(Target)
     {
         PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+
+        CppStandard = CppStandardVersion.Cpp17;
+        
         bEnableExceptions = true; // win64
         if (Target.Platform == UnrealTargetPlatform.Linux)
             bEnableExceptions = false;

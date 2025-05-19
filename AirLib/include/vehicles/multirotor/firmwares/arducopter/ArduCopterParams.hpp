@@ -35,10 +35,11 @@ namespace airlib
         {
             auto& params = getParams();
 
+            const auto& physics_settings = AirSimSettings::singleton().physics_settings; // Get a singleton
+
             // Use connection_info_.model for the model name, see Px4MultiRotorParams for example
 
-            // Only Generic for now
-            setupFrameGenericQuad(params);
+            setupFrame(params, physics_settings.multirotor);
         }
 
         virtual const SensorFactory* getSensorFactory() const override

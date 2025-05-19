@@ -184,14 +184,14 @@ void AdHocConnectionImpl::readPackets()
         int read = 0;
         if (safePort->isClosed()) {
             // hmmm, wait till it is opened?
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            mavlink_utils::CurrentThread::sleep_for_ms(10);
             continue;
         }
 
         int count = safePort->read(buffer, MAXBUFFER);
         if (count <= 0) {
             // error? well let's try again, but we should be careful not to spin too fast and kill the CPU
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            mavlink_utils::CurrentThread::sleep_for_ms(1);
             continue;
         }
 
@@ -200,7 +200,7 @@ void AdHocConnectionImpl::readPackets()
             std::cerr << "GAH KM911 message size (" << std::to_string(count) << ") is bigger than max buffer size! Time to support frame breaks, Moffitt" << std::endl;
 
             // error? well let's try again, but we should be careful not to spin too fast and kill the CPU
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            mavlink_utils::CurrentThread::sleep_for_ms(1);
             continue;
         }
 

@@ -13,6 +13,7 @@
 #include "MavLinkTcpServer.hpp"
 #include "MavLinkFtpClient.hpp"
 #include "Semaphore.hpp"
+#include "ThreadUtils.hpp"
 
 STRICT_MODE_OFF
 #include "json.hpp"
@@ -203,7 +204,7 @@ void UnitTests::SendImageTest()
     MavLinkVideoClient::MavLinkVideoFrame image;
     int retries = 100;
     while (!client.readNextFrame(image) && retries-- > 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        mavlink_utils::CurrentThread::sleep_for_ms(100);
     }
 
     if (retries <= 0) {

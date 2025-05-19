@@ -3,6 +3,7 @@
 
 #include <thread>
 #include <string>
+#include <chrono>
 
 namespace mavlink_utils
 {
@@ -15,6 +16,9 @@ public:
 
     // set a nice name on the current thread which aids in debugging.
     static bool setThreadName(const std::string& name);
+
+    // cross-platform sleep in milliseconds
+    static void sleep_for_ms(unsigned int ms);
 };
 }
 

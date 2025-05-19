@@ -22,6 +22,7 @@ STRICT_MODE_OFF
 #include "json.hpp"
 STRICT_MODE_ON
 #include "UnitTests.h"
+#include "ThreadUtils.hpp"
 
 #include <filesystem>
 using namespace std::filesystem;
@@ -1094,7 +1095,7 @@ std::shared_ptr<MavLinkConnection> connectServer(std::string name)
 void runTelemetry()
 {
     while (telemetry) {
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        mavlink_utils::CurrentThread::sleep_for_ms(1000);
         if (droneConnection != nullptr) {
             MavLinkTelemetry tel;
             tel.wifiInterfaceName = ifaceName.c_str();
@@ -1174,7 +1175,7 @@ void connectSitl(std::shared_ptr<MavLinkVehicle> mavLinkVehicle)
             mavLinkVehicle->connect(gcsConnection);
         }
         catch (std::exception&) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            mavlink_utils::CurrentThread::sleep_for_ms(1000);
         }
     }
 }

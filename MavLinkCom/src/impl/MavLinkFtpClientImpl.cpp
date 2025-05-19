@@ -5,6 +5,7 @@
 #include <mutex>
 #include "Utils.hpp"
 #include "FileSystem.hpp"
+#include "ThreadUtils.hpp"
 #include <sys/stat.h>
 
 using namespace mavlink_utils;
@@ -246,7 +247,7 @@ void MavLinkFtpClientImpl::runStateMachine()
     double totalSleep = 0;
 
     while (waiting_) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(monitorInterval));
+        mavlink_utils::CurrentThread::sleep_for_ms(monitorInterval);
         totalSleep += monitorInterval;
 
         int after = 0;

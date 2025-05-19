@@ -10,6 +10,7 @@
 #include <string>
 #include "FileSystem.hpp"
 #include "Utils.hpp"
+#include "ThreadUtils.hpp"
 
 #include <filesystem>
 using namespace std::filesystem;
@@ -562,7 +563,7 @@ void PlayLogCommand::Execute(std::shared_ptr<MavLinkVehicle> com)
                 if (waitMicros > 1E6) { //1s
                     printf("synchronizing clocks for %f sec\n", waitMicros / 1E6f);
                 }
-                std::this_thread::sleep_for(std::chrono::microseconds(waitMicros));
+                mavlink_utils::CurrentThread::sleep_for_ms(waitMicros / 1000);
             }
             else {
                 // we can skip ahead.
@@ -993,7 +994,7 @@ void FakeGpsCommand::GpsThread()
 {
     // wait for the Execute method to be called.
     while (started && this->com == nullptr) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        mavlink_utils::CurrentThread::sleep_for_ms(100);
     }
 
     MavLinkParameter p;
@@ -1029,7 +1030,7 @@ void FakeGpsCommand::GpsThread()
             com->sendMessage(gps);
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        mavlink_utils::CurrentThread::sleep_for_ms(100);
     }
 
     // disable MAV_USEHILGPS
@@ -1109,7 +1110,7 @@ void HilCommand::HilThread()
 
     // wait for the Execute method to be called.
     while (started && this->com == nullptr) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        mavlink_utils::CurrentThread::sleep_for_ms(100);
     }
 
     // add MAV_MODE_FLAG_HIL_ENABLED flag to current mode
@@ -1165,7 +1166,7 @@ void HilCommand::HilThread()
             }
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        mavlink_utils::CurrentThread::sleep_for_ms(10);
     }
 
     // disable HIL mode
@@ -2832,7 +2833,7 @@ void FtpCommand::monitor()
                 msg = progress.message;
                 printf("%s\n", msg.c_str());
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            mavlink_utils::CurrentThread::sleep_for_ms(100);
         }
     }
 }

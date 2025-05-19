@@ -382,11 +382,219 @@ namespace airlib
             bool move_sun = true;
         };
 
+        struct RotorParamsSettings
+        {
+            /*
+            Ref: http://physics.stackexchange.com/a/32013/14061
+            force in Newton = C_T * \rho * n^2 * D^4
+            torque in N.m = C_P * \rho * n^2 * D^5 / (2*pi)
+            where,
+            \rho = air density (1.225 kg/m^3)
+            n = revolutions per sec
+            D = propeller diameter in meters
+            C_T, C_P = dimensionless constants available at
+            propeller performance database http://m-selig.ae.illinois.edu/props/propDB.html
+
+            We use values for GWS 9X5 propeller for which,
+            C_T = 0.109919, C_P = 0.040164 @ 6396.667 RPM
+            */
+            float C_T = 0.11f; // the thrust co-efficient @ 6396.667 RPM, measured by UIUC.
+            float C_P = 0.040164f; // the torque co-efficient at @ 6396.667 RPM, measured by UIUC.
+            float air_density = 1.225f; //  kg/m^3
+            float max_rpm = 6396.667f; // revolutions per minute
+            float propeller_diameter = 0.2286f; //diameter in meters, default is for DJI Phantom 2
+            float propeller_height = 0.01f; //height of cylindrical area when propeller rotates, 1 cm
+            float control_signal_filter_tc = 0.005f; //time constant for low pass filter
+
+            // If negative, they are calculated later
+            float max_thrust = -1.0f; //computed from formula for the given constants
+            float max_torque = -1.0f; //computed from formula for the given constants
+        };
+
+        struct MultirotorPhysicsSettings
+        {
+            // Initializes 4 rotors in the usual QuadX pattern:  http://ardupilot.org/copter/_images/MOTORS_QuadX_QuadPlus.jpg
+            // which shows that given an array of 4 motors, the first is placed top right and flies counter clockwise (CCW) and
+            // the second is placed bottom left, and also flies CCW.  The third in the array is placed top left and flies clockwise (CW)
+            // while the last is placed bottom right and also flies clockwise.  This is how the 4 items in the arm_lengths and
+            // arm_angles arrays will be used.  So arm_lengths is 4 numbers (in meters) where four arm lengths, 0 is top right,
+            // 1 is bottom left, 2 is top left and 3 is bottom right.  arm_angles is 4 numbers (in degrees)  relative to forward vector (0,1),
+            // provided in the same order where 0 is top right, 1 is bottom left, 2 is top left and 3 is bottom right, so for example,
+            // the angles for a regular symmetric X pattern would be 45, 225, 315, 135.  The rotor_z is the offset of each motor upwards
+            // relative to the center of mass (in meters).
+            
+            /* Note: rotor_poses are built in this order:
+                    x-axis
+               (2)  |   (0)
+                    |
+            -------------- y-axis
+                    |
+               (1)  |   (3)
+            */
+            std::string preset = "Quadrocopter";
+            //set up arm lengths
+            //dimensions are for F450 frame: http://artofcircuits.com/product/quadcopter-frame-hj450-with-power-distribution
+            int rotor_count = 4;
+            float linear_drag_coefficient = 0.325f;
+            //sample value 1.3 from http://klsin.bpmsg.com/how-fast-can-a-quadcopter-fly/, but divided by 4 to account
+            // for nice streamlined frame design and allow higher top speed which is more fun.
+            //angular coefficient is usually 10X smaller than linear, however we should replace this with exact number
+            //http://physics.stackexchange.com/q/304742/14061
+            float angular_drag_coefficient = linear_drag_coefficient;
+            float restitution = 0.55f; // value of 1 would result in perfectly elastic collisions, 0 would be completely inelastic.
+            float friction = 0.5f;
+            std::vector<float> arm_lengths = std::vector<float>(rotor_count, 0.2275f);
+            std::vector<float> arm_angles = {45.0f, -135.0f, -45.0f, 135.0f}; // Rotation according to NED right hand rule (so the vectors are rotated clockwise)
+            std::vector<std::string> rotor_directions = {"ccw", "ccw", "cw", "cw"};
+            //set up mass
+            //this has to be between max_thrust*rotor_count/10 (1.6kg using default parameters in RotorParams.hpp) and (idle throttle percentage)*max_thrust*rotor_count/10 (0.8kg using default parameters and SimpleFlight)
+            //any value above the maximum would result in the motors not being able to lift the body even at max thrust,
+            //and any value below the minimum would cause the drone to fly upwards on idling throttle (50% of the max throttle if using SimpleFlight)
+            //Note that the default idle throttle percentage is 50% if you are using SimpleFlight
+            float mass = 1.0f;
+            float motor_assembly_weight = 0.055f; // weight for MT2212 motor for F450 frame
+            std::vector<float> body_box = {0.18f, 0.11f, 0.04f}; //set up dimensions of core body box or abdomen (not including arms)
+            float rotor_z = 0.025f; // z relative to center of gravity
+            RotorParamsSettings rotor_params;
+
+            void applyFlamewheelPreset() {
+                preset = "Flamewheel";
+                linear_drag_coefficient = 1.3f; // make top speed more real
+                angular_drag_coefficient = linear_drag_coefficient;
+                arm_lengths = std::vector<float>(rotor_count, 0.225f);
+                //set up mass
+                mass = 1.635f;
+                motor_assembly_weight = 0.052f;
+                body_box = {0.16f, 0.1f, 0.14f};
+                rotor_z = 0.15f;
+                rotor_params.C_P = 0.047f;
+                rotor_params.max_rpm = 9500.0f;
+            }
+
+            // Method for applying default settings
+            void applyPresetDefaults(const std::string& preset_name)
+            {
+                const std::string lower_name = Utils::toLower(preset_name);
+                
+                if (lower_name == "hexacopter")
+                {
+                    /* Note: rotor_poses are built in this order: rotor 0 is CW
+                    See HEXA X configuration on http://ardupilot.org/copter/docs/connect-escs-and-motors.html
+
+                          x-axis
+                     (2)    (4)
+                        \  /
+                         \/
+                    (1)-------(0) y-axis
+                         /\
+                        /  \
+                      (5)  (3)
+                    */
+                    preset = "Hexacopter";
+                    //set up arm lengths
+                    //dimensions are for F450 frame: http://artofcircuits.com/product/quadcopter-frame-hj450-with-power-distribution
+                    rotor_count = 6;
+                    arm_lengths = std::vector<float>(rotor_count, 0.2275f);
+                    arm_angles = {90.0f, -90.0f, -30.0f, 150.0f, 30.0f, -150.0f}; // Rotation according to NED right hand rule (so the vectors are rotated clockwise)
+                    rotor_directions = {"cw", "ccw", "cw", "ccw", "ccw", "cw"};
+                }
+                if (lower_name == "octocopter")
+                {
+                    /* Note: rotor_poses are built in this order: rotor 0 is CW
+                    See OCTO X configuration on http://ardupilot.org/copter/docs/connect-escs-and-motors.html
+
+                            x-axis
+                         (4)  |  (0) 
+                              |
+                    (6)       |       (2)
+                    __________|__________  y-axis
+                              |
+                    (5)       |       (7)
+                              |
+                         (1)  |  (3)
+
+                    0 CW: 67.5 from +Y
+                    1 CW: 67.5 from -Y 
+                    2 CCW: 22.5 from +Y
+                    3 CCW: 22.5 from -X
+                    4 CCW: 22.5 from +X
+                    5 CCW: 22.5 from -Y
+                    6 CW: 67.5 from +X
+                    7 CW: 67.5 from -X
+                    */
+
+                    preset = "Octocopter";
+                    rotor_count = 8;
+                    arm_lengths = std::vector<float>(rotor_count, 0.2275f);
+                    arm_angles = {22.5f, -157.5f, 67.5f, 157.5f, -22.5f, -112.5f, -67.5f, 112.5f}; // Rotation according to NED right hand rule (so the vectors are rotated clockwise)
+                    rotor_directions = {"cw", "cw", "ccw", "ccw", "ccw", "ccw", "cw", "cw"};
+                }
+                if (lower_name == "flamewheel") applyFlamewheelPreset();
+                if (lower_name == "flamewheelfla")
+                {
+                    applyFlamewheelPreset();
+                    preset = "FlamewheelFLA";
+                    mass = 2.25f;
+                    motor_assembly_weight = 0.1f;
+                    rotor_params.C_T = 0.2f;
+                    rotor_params.C_P = 0.1f;
+                    rotor_params.max_rpm = 9324.0f;
+                }
+                if (lower_name == "blacksheep")
+                {
+                    preset = "Blacksheep";
+                    //set up arm lengths
+                    //dimensions are for Team Blacksheep Discovery (http://team-blacksheep.com/products/product:98)
+                    // relative to Forward vector in the order (0,3,1,2) required by quad X pattern
+                    // http://ardupilot.org/copter/_images/MOTORS_QuadX_QuadPlus.jpg
+                    arm_lengths = {0.22f, 0.255f, 0.22f, 0.255f};
+                    // note: the Forward vector is actually the "x" axis, and the AngleAxisr rotation is pointing down and is left handed, so this means the rotation
+                    // is counter clockwise, so the vector (arm_lengths[i], 0) is the X-axis, so the CCW rotations to position each arm correctly are listed below:
+                    // See measurements here: http://diydrones.com/profiles/blogs/arducopter-tbs-discovery-style (angles reversed because we are doing CCW rotation)
+                    arm_angles = {55.0f, -125.0f, -55.0f, 125.0f};
+                    // data from
+                    // http://dronesvision.net/team-blacksheep-750kv-motor-esc-set-for-tbs-discovery-fpv-quadcopter/
+                    //set up mass
+                    mass = 2.0f; // can be varied from 0.800 to 1.600
+                    motor_assembly_weight = 0.052f; // weight for TBS motors
+                    body_box = {0.2f, 0.12f, 0.04f};  //set up dimensions of core body box or abdomen (not including arms)
+                    // the props we are using a E-Prop, which I didn't find in UIUC database, but this one is close:
+                    // http://m-selig.ae.illinois.edu/props/volume-2/plots/ef_130x70_static_ctcp.png
+                    rotor_params.C_P = 0.047f;
+                    rotor_params.max_rpm = 9500.0f;
+                }
+                if (lower_name == "solo")
+                {
+                    preset = "Solo";  // ArduCopterSolo
+                    // This is in meters (3DR spec indicates that motor-to-motor is 18.1 inches, so we're just dividing that by 2, which looks about right in real life)
+                    arm_lengths = std::vector<float>(rotor_count, 0.22987f);
+                    // Takeoff mass, in kilograms (this is from the 3DR spec with no camera)
+                    // params.mass = 1.5f;
+                    // And this is what works currently - TODO sort out why ArduPilot isn't providing sufficient rotor power for default Solo weight - presumably some param setting?
+                    mass = 0.8f;
+                    // Mass in kg - can't find a 3DR spec on this, so we'll guess they're the same 55g as the DJI F450's motors
+                    // Dimensions of core body box or abdomen, in meters (not including arms).  KM measures the Solo at 9.5" x 4.5" x 3"
+                    body_box = {0.2413f, 0.1143f, 0.0762f};  //set up dimensions of core body box or abdomen (not including arms)
+                    // Meters up from center of box mass - KM measures at about 3"
+                    rotor_z = 0.0762f;
+                }
+                if (!(lower_name.empty() || lower_name == "quadrocopter" || lower_name == "hexacopter" || lower_name == "octocopter" || lower_name == "flamewheel" || lower_name == "flamewheelfla" || lower_name == "blacksheep" || lower_name == "solo"))
+                {
+                    throw std::invalid_argument("Unexpected multirotor preset: " + preset_name);
+                }
+            }
+        };
+        
+        struct PhysicsSettings {
+            MultirotorPhysicsSettings multirotor;
+        };
+
     private: //fields
         float settings_version_actual;
-        float settings_version_minimum = 1.2f;
+        float settings_version_minimum = 1.3f;
 
     public: //fields
+
         std::string simmode_name = "";
         std::string level_name = "";
 
@@ -394,6 +602,7 @@ namespace airlib
         RecordingSetting recording_setting;
         SegmentationSetting segmentation_setting;
         TimeOfDaySetting tod_setting;
+        PhysicsSettings physics_settings;
 
         std::vector<std::string> warning_messages;
         std::vector<std::string> error_messages;
@@ -457,7 +666,8 @@ namespace airlib
             loadDefaultSensorSettings(simmode_name, settings_json, sensor_defaults);
             loadVehicleSettings(simmode_name, settings_json, vehicles, sensor_defaults, camera_defaults);
             loadExternalCameraSettings(settings_json, external_cameras, camera_defaults);
-
+            loadPhysicsSettings(simmode_name, settings_json, physics_settings);
+            
             //this should be done last because it depends on vehicles (and/or their type) we have
             loadRecordingSetting(settings_json);
             loadClockSettings(settings_json);
@@ -477,8 +687,8 @@ namespace airlib
 
             Settings& settings_json = Settings::singleton();
             //write some settings_json in new file otherwise the string "null" is written if all settings_json are empty
-            settings_json.setString("SeeDocsAt", "https://github.com/Microsoft/AirSim/blob/main/docs/settings.md");
-            settings_json.setDouble("SettingsVersion", 1.2);
+            settings_json.setString("SeeDocsAt", "https://github.com/StableKite/Colosseum/blob/main/docs/settings.md");
+            settings_json.setDouble("SettingsVersion", 1.3);
 
             std::string settings_filename = Settings::getUserDirectoryFullPath("settings.json");
             //TODO: there is a crash in Linux due to settings_json.saveJSonString(). Remove this workaround after we only support Unreal 4.17
@@ -1411,6 +1621,76 @@ namespace airlib
                     json_parent.getChild(key, child);
                     external_cameras[key] = createCameraSetting(child, camera_defaults);
                 }
+            }
+        }
+
+        static void loadPhysicsSettings(const std::string& simmode_name,
+                                        const Settings& settings_json,
+                                        PhysicsSettings& physics_setting)
+        {
+            if (simmode_name == kSimModeTypeMultirotor)
+            {
+                // Determ a preset
+                std::string preset = "";
+                std::string lower_vehicle_type = Utils::toLower(settings_json.getString("VehicleType", ""));
+                if (lower_vehicle_type != kVehicleTypePX4) // If not set or not PX4
+                {
+                    if (lower_vehicle_type == kVehicleTypeArduCopterSolo) preset = "Solo"; // Preset for ArduCopterSolo
+                    else preset = "Quadrocopter"; // Default preset
+                }
+
+                Settings physics_child;
+                if (settings_json.getChild("Physics", physics_child))
+                {
+                    Settings multirotor_child;
+                    if (physics_child.getChild("Multirotor", multirotor_child))
+                    {
+                        preset = Utils::toLower(multirotor_child.getString("Preset", preset));
+                        physics_setting.multirotor.applyPresetDefaults(preset);  // Set the settings depending on the preset
+
+                        physics_setting.multirotor.rotor_count = multirotor_child.getInt("RotorCount", physics_setting.multirotor.rotor_count);
+                        physics_setting.multirotor.linear_drag_coefficient = multirotor_child.getFloat("LinearDragCoefficient", physics_setting.multirotor.linear_drag_coefficient);
+                        physics_setting.multirotor.angular_drag_coefficient = multirotor_child.getFloat("AngularDragCoefficient", physics_setting.multirotor.linear_drag_coefficient);
+                        physics_setting.multirotor.restitution = multirotor_child.getFloat("Restitution", physics_setting.multirotor.restitution);
+                        physics_setting.multirotor.friction = multirotor_child.getFloat("Friction", physics_setting.multirotor.friction);
+                        float arm_length = multirotor_child.getFloat("ArmLength", -1.0f);
+                        if (arm_length >= 0) physics_setting.multirotor.arm_lengths = std::vector<float>(physics_setting.multirotor.rotor_count, arm_length);
+                        physics_setting.multirotor.arm_lengths = multirotor_child.getFloatVector("ArmLengths", physics_setting.multirotor.arm_lengths);
+                        physics_setting.multirotor.arm_angles = multirotor_child.getFloatVector("ArmAngles", physics_setting.multirotor.arm_angles);
+                        physics_setting.multirotor.rotor_directions = multirotor_child.getStringVector("RotorDirections", physics_setting.multirotor.rotor_directions);
+                        physics_setting.multirotor.mass = multirotor_child.getFloat("Mass", physics_setting.multirotor.mass);
+                        physics_setting.multirotor.motor_assembly_weight = multirotor_child.getFloat("MotorAssemblyWeight", physics_setting.multirotor.motor_assembly_weight);
+                        Settings body_box_child;
+                        if (multirotor_child.getChild("BodyBox", body_box_child))
+                        {
+                            physics_setting.multirotor.body_box = {
+                                body_box_child.getFloat("X", physics_setting.multirotor.body_box[0]),
+                                body_box_child.getFloat("Y", physics_setting.multirotor.body_box[1]),
+                                body_box_child.getFloat("Z", physics_setting.multirotor.body_box[2])
+                            };
+                        }
+                        physics_setting.multirotor.rotor_z = multirotor_child.getFloat("RotorZ", physics_setting.multirotor.rotor_z);
+                        
+                        // Rotor parameters
+                        Settings rotor_params_child;
+                        if (multirotor_child.getChild("RotorParams", rotor_params_child))
+                        {
+                            physics_setting.multirotor.rotor_params.C_T = rotor_params_child.getFloat("CT", physics_setting.multirotor.rotor_params.C_T);
+                            physics_setting.multirotor.rotor_params.C_P = rotor_params_child.getFloat("CP", physics_setting.multirotor.rotor_params.C_P);
+                            physics_setting.multirotor.rotor_params.air_density = rotor_params_child.getFloat("AirDensity", physics_setting.multirotor.rotor_params.air_density);
+                            physics_setting.multirotor.rotor_params.max_rpm = rotor_params_child.getFloat("MaxRpm", physics_setting.multirotor.rotor_params.max_rpm);
+                            physics_setting.multirotor.rotor_params.propeller_diameter = rotor_params_child.getFloat("PropellerDiameter", physics_setting.multirotor.rotor_params.propeller_diameter);
+                            physics_setting.multirotor.rotor_params.propeller_height = rotor_params_child.getFloat("PropellerHeight", physics_setting.multirotor.rotor_params.propeller_height);
+                            physics_setting.multirotor.rotor_params.control_signal_filter_tc = rotor_params_child.getFloat("ControlSignalFilterTc", physics_setting.multirotor.rotor_params.control_signal_filter_tc);
+
+                            // If negative, they are calculated later
+                            physics_setting.multirotor.rotor_params.max_thrust = rotor_params_child.getFloat("MaxThrust", physics_setting.multirotor.rotor_params.max_thrust);
+                            physics_setting.multirotor.rotor_params.max_torque = rotor_params_child.getFloat("MaxTorque", physics_setting.multirotor.rotor_params.max_torque);
+                        }
+                    }
+                    else physics_setting.multirotor.applyPresetDefaults(preset);  // Set the settings depending on the preset
+                }
+                else physics_setting.multirotor.applyPresetDefaults(preset);  // Set the settings depending on the preset
             }
         }
     };

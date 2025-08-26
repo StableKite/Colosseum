@@ -1,3 +1,6 @@
 [submodule "ExternalRepositories/Colosseum_Eigen"]
 	path = ExternalRepositories/Colosseum_Eigen
 	url = https://github.com/Panics/Colosseum_Eigen
+[submodule "PythonClient"]
+	path = PythonClient
+	url = https://github.com/StableKite/airsim

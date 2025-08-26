@@ -1,3 +1,0 @@
-numpy<2.0.0
-opencv-python
-msgpack-rpc-python @ git+https://github.com/StableKite/msgpack-rpc-python.git
